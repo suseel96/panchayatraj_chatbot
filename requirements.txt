@@ -1,0 +1,11 @@
+cohere
+langchain
+qdrant-client
+pypdf
+streamlit
+pandas
+langchain-community
+openai==0.28
+openpyxl
+langchain_experimental
+tabulate
