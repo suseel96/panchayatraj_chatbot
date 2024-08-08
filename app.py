@@ -22,7 +22,6 @@ if "chat_history" not in st.session_state:
 if "df" not in st.session_state:
     st.session_state.df = None
 
-
 def stream_data(input):
     for word in input.split(" "):
         yield word + " "
@@ -35,18 +34,18 @@ def login():
     st.image(logo_path, width=200)
     st.title("Login to Multi-lingual Q&A Chatbot")
     st.markdown("###### Panchayat & Rural Development Dept, Bhopal, M.P")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    
-    if st.button("Login"):
-        # Here you should implement your own authentication logic
-        # For this example, we'll use a simple hardcoded check
-        if username == st.secrets["LOGIN_USERNAME"] and password == st.secrets["LOGIN_PASSWORD"]:
-            st.session_state.authenticated = True
-            st.success("Logged In as {}".format(username))
-            st.rerun()
-        else:
-            st.error("Incorrect Username/Password")
+    with st.form(key='login_form'):
+        username = st.text_input("Username", placeholder="Enter your username here...")
+        password = st.text_input("Password", type="password", placeholder="Enter your password here...")
+        submit_button = st.form_submit_button("Login")
+
+        if submit_button:
+            if username == st.secrets["LOGIN_USERNAME"] and password == st.secrets["LOGIN_PASSWORD"]:
+                st.session_state.authenticated = True
+                st.success("Logged In as {}".format(username))
+                st.rerun()
+            else:
+                st.error("Incorrect Username/Password")
 
 # Main App
 def main_app():
@@ -91,17 +90,23 @@ def main_app():
             with st.chat_message("user"):
                 st.write(user_question)
 
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    response = agent.run(user_question)
-                st.write_stream(stream_data(response))
-                translated_text = translateText(response, src_lang='en', target_lang='hi')
-                # st.write(translated_text)
-                st.write_stream(stream_data(translated_text))
-                audio_b64 = textToSpeech(language='hi', text = translated_text)
-                audio_player(audio_b64)
-                response_for_history = f'''{response}\n\n{translated_text}'''
-            st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
+            try:
+                with st.chat_message("assistant"):
+                    with st.spinner("Thinking..."):
+                        response = agent.run(user_question)
+                    st.write_stream(stream_data(response))
+                    
+                    translated_text = translateText(response, src_lang='en', target_lang='hi')
+                    st.write_stream(stream_data(translated_text))
+                    
+                    audio_b64 = textToSpeech(language='hi', text = translated_text)
+                    audio_player(audio_b64)
+                    
+                    response_for_history = f'''{response}\n\n{translated_text}'''
+                    st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
+            except Exception as e:
+                st.write("Unable to generate response, please try again.")
+                st.error(f"Error: {str(e)}")
 
         with st.sidebar:
             st.markdown("### Data from your uploaded file:")
