@@ -3,7 +3,8 @@ import pandas as pd
 from langchain import OpenAI
 from langchain_experimental.agents import create_pandas_dataframe_agent
 import os
-
+import time
+from utils.language_utils import *
 
 # Load CSS file
 def load_css(file_name="static/style.css"):
@@ -11,66 +12,105 @@ def load_css(file_name="static/style.css"):
         css = f.read()
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
+# Initialize session state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-load_css()
-
-
-logo_path = os.path.join("utils", "logo2.png")
-
-st.logo(logo_path, icon_image=logo_path)
-# Initialize session state for chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Initialize session state for the dataframe
 if "df" not in st.session_state:
     st.session_state.df = None
 
-os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
-llm = OpenAI(temperature=0)
+def stream_data(input):
+    for word in input.split(" "):
+        yield word + " "
+        time.sleep(0.08)
 
-# Streamlit app
-st.title("Multi-lingual Q&A Chatbot")
-st.markdown("###### Panchayat & Rural Development Dept, Bhopal, M.P")
+# Login Page
+def login():
+    load_css()
+    logo_path = os.path.join("utils", "logo2.png")
+    st.image(logo_path, width=200)
+    st.title("Login to Multi-lingual Q&A Chatbot")
+    st.markdown("###### Panchayat & Rural Development Dept, Bhopal, M.P")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    
+    if st.button("Login"):
+        # Here you should implement your own authentication logic
+        # For this example, we'll use a simple hardcoded check
+        if username == st.secrets["LOGIN_USERNAME"] and password == st.secrets["LOGIN_PASSWORD"]:
+            st.session_state.authenticated = True
+            st.success("Logged In as {}".format(username))
+            st.rerun()
+        else:
+            st.error("Incorrect Username/Password")
 
-st.session_state.df = pd.read_csv("./MGNREGA_AGG.csv")
+# Main App
+def main_app():
+    load_css()
+    st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">', unsafe_allow_html=True)
 
-if st.session_state.df is not None:
-    # Create a pandas dataframe agent
-    agent = create_pandas_dataframe_agent(
-        llm, st.session_state.df, verbose=True, allow_dangerous_code=True
-    )
+    logo_path = os.path.join("utils", "logo2.png")
+    st.logo(logo_path, icon_image=logo_path)
 
-    # Display chat history
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+    llm = OpenAI(temperature=0)
 
-    # User input
-    user_question = st.chat_input("Your question:")
+    st.title("Multi-lingual Q&A Chatbot")
+    st.markdown("###### Panchayat & Rural Development Dept, Bhopal, M.P")
 
-    if user_question:
-        # Add user message to chat history
-        st.session_state.chat_history.append({"role": "user", "content": user_question})
+    if st.session_state.df is None:
+        st.session_state.df = pd.read_csv("./MGNREGA_AGG.csv")
+    
+    if st.session_state.df is not None:
+        agent = create_pandas_dataframe_agent(
+            llm, st.session_state.df, verbose=True, allow_dangerous_code=True
+        )
+        
+        if not st.session_state.chat_history:
+            st.markdown(
+                """
+                <div style="display: flex; align-items: center; justify-content: center; height: 200px;">
+                    <i class="fa-solid fa-message" style="font-size: 48px; color: rgb(224, 224, 224); margin-right: 10px;"></i>
+                    <h2 style="font-size: 24px; font-weight: bold; color: grey; margin: 0;">Start your conversation</h2>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
-        # Display user message
-        with st.chat_message("user"):
-            st.write(user_question)
+        user_question = st.chat_input("Your question:")
+        if user_question:
+            st.session_state.chat_history.append({"role": "user", "content": user_question})
+            with st.chat_message("user"):
+                st.write(user_question)
 
-        # Get bot response
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = agent.run(user_question)
-            st.write(response)
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    response = agent.run(user_question)
+                st.write_stream(stream_data(response))
+                translated_text = translateText(response, src_lang='en', target_lang='hi')
+                # st.write(translated_text)
+                st.write_stream(stream_data(translated_text))
+                audio_b64 = textToSpeech(language='hi', text = translated_text)
+                audio_player(audio_b64)
+                response_for_history = f'''{response}\n\n{translated_text}'''
+            st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
 
-        # Add bot response to chat history
-        st.session_state.chat_history.append({"role": "assistant", "content": response})
+        with st.sidebar:
+            st.markdown("### Data from your uploaded file:")
+            st.dataframe(st.session_state.df)
+    else:
+        st.write("Please upload an Excel file to begin.")
 
-    # Display the dataframe
-    with st.sidebar:
-        st.markdown("### Data from your uploaded file:")
-        st.dataframe(st.session_state.df)
-
+# Main execution
+if st.session_state.authenticated:
+    main_app()
 else:
-    st.write("Please upload an Excel file to begin.")
+    login()
