@@ -51,8 +51,10 @@ def login():
 # Main App
 def main_app():
     load_css()
+    st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">', unsafe_allow_html=True)
+
     logo_path = os.path.join("utils", "logo2.png")
-    st.image(logo_path, width=200)
+    st.logo(logo_path, icon_image=logo_path)
 
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
     llm = OpenAI(temperature=0)
@@ -67,7 +69,18 @@ def main_app():
         agent = create_pandas_dataframe_agent(
             llm, st.session_state.df, verbose=True, allow_dangerous_code=True
         )
-
+        
+        if not st.session_state.chat_history:
+            st.markdown(
+                """
+                <div style="display: flex; align-items: center; justify-content: center; height: 200px;">
+                    <i class="fa-solid fa-message" style="font-size: 48px; color: rgb(224, 224, 224); margin-right: 10px;"></i>
+                    <h2 style="font-size: 24px; font-weight: bold; color: grey; margin: 0;">Start your conversation</h2>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        
         for message in st.session_state.chat_history:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
@@ -86,7 +99,7 @@ def main_app():
                 # st.write(translated_text)
                 st.write_stream(stream_data(translated_text))
                 audio_b64 = textToSpeech(language='hi', text = translated_text)
-                autoplay_audio(audio_b64)
+                audio_player(audio_b64)
                 response_for_history = f'''{response}\n\n{translated_text}'''
             st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
 

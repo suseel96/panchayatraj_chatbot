@@ -4,11 +4,19 @@ import base64
 import streamlit as st
 from translators import translate_text
 
+def audio_player(audio_b64):
+    audio_html = f"""
+    <audio id="audio" controls>
+        <source src="data:audio/mp3;base64,{audio_b64}" type="audio/mp3">
+        Your browser does not support the audio element.
+    </audio>
+    <script>
+    var audio = document.getElementById('audio');
+    </script>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
+
 def autoplay_audio(b64):
-# def autoplay_audio(file_path: str):
-    # with open(file_path, "rb") as f:
-    #     data = f.read()
-    # b64 = base64.b64encode(data).decode("utf-8")
     md = f"""
     <audio autoplay>
     <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
@@ -47,6 +55,3 @@ def textToSpeech(language, text, voice = 'female'):
 
     base64_data = response.json()['audio'][0]['audioContent']
     return base64_data
-    # wav_file = open("temp.wav", "wb")
-    # decode_string = base64.b64decode(base64_data)
-    # wav_file.write(decode_string)
