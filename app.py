@@ -99,9 +99,9 @@ def main_app():
                     
                     translated_text = translateText(response, src_lang='en', target_lang='hi')
                     st.write_stream(stream_data(translated_text))
-                    
-                    audio_b64 = textToSpeech(language='hi', text = translated_text)
-                    audio_player(audio_b64)
+                    with st.spinner("Generating audio..."):
+                        audio_b64 = textToSpeech(language='hi', text = translated_text)
+                        audio_player(audio_b64)
                     
                     response_for_history = f'''{response}\n\n{translated_text}'''
                     st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
