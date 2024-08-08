@@ -10,3 +10,4 @@ openpyxl
 langchain_experimental
 tabulate
 translators
+regex
