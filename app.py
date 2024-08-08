@@ -3,6 +3,7 @@ import pandas as pd
 from langchain import OpenAI
 from langchain_experimental.agents import create_pandas_dataframe_agent
 import os
+import regex as re
 import time
 from utils.language_utils import *
 
@@ -93,7 +94,7 @@ def main_app():
             try:
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking..."):
-                        response = agent.run(user_question)
+                        response = agent.run(re.sub(r'[^a-zA-Z0-9\s]', '', user_question))
                     st.write_stream(stream_data(response))
                     
                     translated_text = translateText(response, src_lang='en', target_lang='hi')
