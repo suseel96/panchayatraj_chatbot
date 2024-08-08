@@ -106,7 +106,7 @@ def main_app():
                     st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
             except Exception as e:
                 st.write("Unable to generate response, please try again.")
-                st.error(f"Error: {str(e)}")
+                # st.error(f"Error: {str(e)}")
 
         with st.sidebar:
             st.markdown("### Data from your uploaded file:")
