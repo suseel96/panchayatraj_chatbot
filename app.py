@@ -6,6 +6,7 @@ import os
 import regex as re
 import time
 from utils.language_utils import *
+from utils.llm_utils import *
 
 # Load CSS file
 def load_css(file_name="static/style.css"):
@@ -63,7 +64,11 @@ def main_app():
     st.markdown("###### Panchayat & Rural Development Dept, Bhopal, M.P")
 
     if st.session_state.df is None:
-        st.session_state.df = pd.read_csv("./MGNREGA_AGG.csv")
+        file_name = "./testdata.xlsx"
+        if file_name.lower().endswith('.csv'):
+            st.session_state.df = pd.read_csv(file_name)
+        elif file_name.lower().endswith('.xlsx'):
+            st.session_state.df = pd.read_excel(file_name)
 
     if st.session_state.df is not None:
         agent = create_pandas_dataframe_agent(
@@ -108,7 +113,8 @@ def main_app():
                             )
                         else:
                             raise Exception("Unsupported language detected.")
-                        response = agent.run(final_input)
+                        agent_response = agent.run(final_input)
+                        response = rephraseAnswer(question=final_input, answer=agent_response)
                     st.write_stream(streamData(response))
 
                     translated_text = translateText(response, src_lang='en', target_lang='hi')
@@ -121,7 +127,7 @@ def main_app():
                     st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
             except Exception as e:
                 st.write("Unable to generate response, please try again.")
-                # st.error(f"Error: {str(e)}")
+                st.error(f"Error: {str(e)}")
 
         with st.sidebar:
             st.markdown("### Data from your uploaded file:")
