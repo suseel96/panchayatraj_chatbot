@@ -3,6 +3,7 @@ import json
 import base64
 import streamlit as st
 from translators import translate_text
+from langdetect import detect
 
 def audio_player(audio_b64):
     audio_html = f"""
@@ -55,3 +56,6 @@ def textToSpeech(language, text, voice = 'female'):
 
     base64_data = response.json()['audio'][0]['audioContent']
     return base64_data
+
+def detectInputLang(input_text):
+    return detect(input_text)

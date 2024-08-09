@@ -23,7 +23,7 @@ if "chat_history" not in st.session_state:
 if "df" not in st.session_state:
     st.session_state.df = None
 
-def stream_data(input):
+def streamData(input):
     for word in input.split(" "):
         yield word + " "
         time.sleep(0.08)
@@ -64,12 +64,12 @@ def main_app():
 
     if st.session_state.df is None:
         st.session_state.df = pd.read_csv("./MGNREGA_AGG.csv")
-    
+
     if st.session_state.df is not None:
         agent = create_pandas_dataframe_agent(
             llm, st.session_state.df, verbose=True, allow_dangerous_code=True
         )
-        
+
         if not st.session_state.chat_history:
             st.markdown(
                 """
@@ -80,7 +80,7 @@ def main_app():
                 """,
                 unsafe_allow_html=True
             )
-        
+
         for message in st.session_state.chat_history:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
@@ -94,20 +94,32 @@ def main_app():
             try:
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking..."):
-                        response = agent.run(re.sub(r'[^a-zA-Z0-9\s]', '', user_question))
-                    st.write_stream(stream_data(response))
-                    
+                        input_lang = detectInputLang(user_question)
+                        if input_lang == 'en':
+                            final_input = re.sub(r"[^a-zA-Z0-9\s]", "", user_question)
+                        elif input_lang == 'hi':
+                            cleaned_input = re.sub(
+                                r"[^\u0900-\u097F\s]",
+                                "",
+                                user_question,
+                            )
+                            final_input = translateText(
+                                cleaned_input, src_lang="hi", target_lang="en"
+                            )
+                        response = agent.run(final_input)
+                    st.write_stream(streamData(response))
+
                     translated_text = translateText(response, src_lang='en', target_lang='hi')
-                    st.write_stream(stream_data(translated_text))
+                    st.write_stream(streamData(translated_text))
                     with st.spinner("Generating audio..."):
                         audio_b64 = textToSpeech(language='hi', text = translated_text)
                         audio_player(audio_b64)
-                    
+
                     response_for_history = f'''{response}\n\n{translated_text}'''
                     st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
             except Exception as e:
                 st.write("Unable to generate response, please try again.")
-                # st.error(f"Error: {str(e)}")
+                st.error(f"Error: {str(e)}")
 
         with st.sidebar:
             st.markdown("### Data from your uploaded file:")
