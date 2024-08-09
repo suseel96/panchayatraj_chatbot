@@ -106,6 +106,8 @@ def main_app():
                             final_input = translateText(
                                 cleaned_input, src_lang="hi", target_lang="en"
                             )
+                        else:
+                            raise Exception("Unsupported language detected.")
                         response = agent.run(final_input)
                     st.write_stream(streamData(response))
 
@@ -119,7 +121,7 @@ def main_app():
                     st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
             except Exception as e:
                 st.write("Unable to generate response, please try again.")
-                st.error(f"Error: {str(e)}")
+                # st.error(f"Error: {str(e)}")
 
         with st.sidebar:
             st.markdown("### Data from your uploaded file:")
