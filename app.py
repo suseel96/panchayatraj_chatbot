@@ -142,7 +142,6 @@ def main_app():
                             raise Exception("Unsupported language detected.")
                         agent_response = qa({"query": final_input})
                         agent_response = response = agent_response["result"]
-                        response = rephraseAnswer(question=final_input, answer=agent_response)
                     st.write_stream(streamData(response))
 
                     translated_text = translateText(response, src_lang='en', target_lang='hi')
