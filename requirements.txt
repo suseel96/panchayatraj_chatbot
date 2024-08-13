@@ -12,3 +12,4 @@ tabulate
 translators
 regex
 langdetect
+faiss-cpu

@@ -1,12 +1,31 @@
 import streamlit as st
 import pandas as pd
 from langchain import OpenAI
+from langchain.vectorstores import FAISS
+from langchain.embeddings.cohere import CohereEmbeddings
+from langchain.chains import RetrievalQA
+from langchain.llms import Cohere
+from langchain.prompts import PromptTemplate
 from langchain_experimental.agents import create_pandas_dataframe_agent
 import os
 import regex as re
 import time
 from utils.language_utils import *
 from utils.llm_utils import *
+
+prompt_template = """Text: {context}
+
+Question: {question}
+
+Answer the question based on the text provided. Do not provide any conclusive statements apart from the answer
+If the text doesn't contain the answer, reply that the answer is not available.
+Provide the answer as a meaningful sentence based on the question."""
+
+PROMPT = PromptTemplate(
+    template=prompt_template, input_variables=["context", "question"]
+)
+chain_type_kwargs = {"prompt": PROMPT}
+
 
 # Load CSS file
 def load_css(file_name="static/style.css"):
@@ -70,11 +89,24 @@ def main_app():
         elif file_name.lower().endswith('.xlsx'):
             st.session_state.df = pd.read_excel(file_name)
 
-    if st.session_state.df is not None:
-        agent = create_pandas_dataframe_agent(
-            llm, st.session_state.df, verbose=True, allow_dangerous_code=True
+    cohere_api_key = st.secrets["COHERE_API_KEY"]
+
+    embeddings = CohereEmbeddings(
+            model="multilingual-22-12", cohere_api_key=cohere_api_key, user_agent='langchain'
         )
 
+    faiss_load_path = "faiss_index"
+    store = FAISS.load_local(faiss_load_path, embeddings,allow_dangerous_deserialization=True)
+
+    qa = RetrievalQA.from_chain_type(
+        llm=Cohere(model="command", temperature=0, cohere_api_key=cohere_api_key),
+        chain_type="stuff",
+        retriever=store.as_retriever(),
+        chain_type_kwargs=chain_type_kwargs,
+        return_source_documents=True,
+    )
+
+    if st.session_state.df is not None:
         if not st.session_state.chat_history:
             st.markdown(
                 """
@@ -101,19 +133,15 @@ def main_app():
                     with st.spinner("Thinking..."):
                         input_lang = detectInputLang(user_question)
                         if input_lang == 'en':
-                            final_input = re.sub(r"[^a-zA-Z0-9\s]", "", user_question)
+                            final_input = user_question
                         elif input_lang == 'hi':
-                            cleaned_input = re.sub(
-                                r"[^\u0900-\u097F\s]",
-                                "",
-                                user_question,
-                            )
                             final_input = translateText(
-                                cleaned_input, src_lang="hi", target_lang="en"
+                                user_question, src_lang="hi", target_lang="en"
                             )
                         else:
                             raise Exception("Unsupported language detected.")
-                        agent_response = agent.run(final_input)
+                        agent_response = qa({"query": final_input})
+                        agent_response = response = agent_response["result"]
                         response = rephraseAnswer(question=final_input, answer=agent_response)
                     st.write_stream(streamData(response))
 
@@ -127,7 +155,7 @@ def main_app():
                     st.session_state.chat_history.append({"role": "assistant", "content": response_for_history})
             except Exception as e:
                 st.write("Unable to generate response, please try again.")
-                st.error(f"Error: {str(e)}")
+                # st.error(f"Error: {str(e)}")
 
         with st.sidebar:
             st.markdown("### Data from your uploaded file:")
